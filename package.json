@@ -1,0 +1,31 @@
+{
+  "name": "meanstv-grayjay-plugin",
+  "version": "1.0.0",
+  "description": "Means TV with type help",
+  "homepage": "https://yachay.cholojuanito.net/cholojuanito/meanstv-grayjay-plugin",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://https://yachay.cholojuanito.net/cholojuanito/meanstv-grayjay-plugin"
+  },
+  "keywords": [
+    "meanstv",
+    "grayjay"
+  ],
+  "author": "cholojuanito",
+  "license": "AGL-3.0-or-later",
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "@eslint/js": "^9.20.0",
+    "@types/eslint__js": "^8.42.3",
+    "eslint": "^9.20.1",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.1",
+    "@types/grayjay-source": "gitlab:kaidelorenzo/grayjay-plugin-types#c750f680835bb47bfff90466acaa697920a2a82a"
+  },
+  "scripts": {
+    "build": "tsc",
+    "lint": "npx eslint .",
+    "dev": "node src/utilities/server.js"
+  }
+}
