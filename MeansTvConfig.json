@@ -1,0 +1,28 @@
+{
+  "name": "MeansTV",
+  "description": "The world's first worker-owned streaming platform",
+  "author": "Your author name",
+  "authorUrl": "https://yoursite.com",
+  "sourceUrl": "https://yoursite.com/SomeConfig.json",
+  "repositoryUrl": "https://https://yachay.cholojuanito.net/cholojuanito/meanstv-grayjay-plugin",
+  "scriptUrl": "./MeansTvScript.js",
+  "version": 1,
+  "iconUrl": "./MeansTvIcon.png",
+  "id": "1ebbd4b9-bfab-4fb2-9e75-fdc05db284ad",
+  "scriptSignature": "",
+  "scriptPublicKey": "",
+  "packages": [
+    "Http"
+  ],
+  "allowEval": false,
+  "allowUrls": [
+    "means.tv",
+    "assets-gke.uscreencdn.com",
+    "alpha.uscreencdn.com"
+  ],
+  "authentication": {
+    "loginUrl": "https://means.tv/sign_in",
+    "UserAgent": "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
+    "cookiesToFind": ["uscreentv_uuid"]
+  }
+}
