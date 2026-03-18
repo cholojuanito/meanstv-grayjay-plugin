@@ -24,8 +24,10 @@
     "@types/grayjay-source": "gitlab:kaidelorenzo/grayjay-plugin-types#c750f680835bb47bfff90466acaa697920a2a82a"
   },
   "scripts": {
-    "build": "tsc",
     "lint": "npx eslint .",
-    "dev": "node src/utilities/server.js"
+    "bun-release": "bun install && bun update && bun x npm-check-updates",
+    "npm-release": "npm install && npm update && npx npm-check-updates",
+    "bun-dev": "bun x http-server -p 3000 .",
+    "npm-dev": "npx http-server -p 3000 ."
   }
 }
