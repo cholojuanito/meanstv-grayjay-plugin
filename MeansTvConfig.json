@@ -17,12 +17,19 @@
   "allowEval": false,
   "allowUrls": [
     "means.tv",
+    "www.uscreen.tv",
+    "api.uscreencdn.com",
+    "alpha.uscreencdn.com",
     "assets-gke.uscreencdn.com",
-    "alpha.uscreencdn.com"
+    "cable.uscreen.at",
+    "stream.mux.com",
+    "image.mux.com",
+    "manifest-gcp-us-east4-vop1.edgemv.mux.com",
+    "chunk-gcp-us-east4-vop1.fastly.mux.com"
   ],
   "authentication": {
     "loginUrl": "https://means.tv/sign_in",
     "UserAgent": "Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.6099.230 Mobile Safari/537.36",
-    "cookiesToFind": ["uscreentv_uuid"]
+    "cookiesToFind": ["_uscreen2_session"]
   }
 }
