@@ -15,19 +15,23 @@
   "author": "cholojuanito",
   "license": "AGL-3.0-or-later",
   "devDependencies": {
-    "@types/node": "^22.13.4",
     "@eslint/js": "^9.20.0",
     "@types/eslint__js": "^8.42.3",
+    "@types/grayjay-source": "gitlab:kaidelorenzo/grayjay-plugin-types#c750f680835bb47bfff90466acaa697920a2a82a",
+    "@types/node": "^22.13.4",
     "eslint": "^9.20.1",
+    "http-server": "^14.1.1",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.24.1",
-    "@types/grayjay-source": "gitlab:kaidelorenzo/grayjay-plugin-types#c750f680835bb47bfff90466acaa697920a2a82a"
+    "typescript-eslint": "^8.24.1"
   },
   "scripts": {
-    "lint": "npx eslint .",
-    "bun-release": "bun install && bun update && bun x npm-check-updates",
-    "npm-release": "npm install && npm update && npx npm-check-updates",
-    "bun-dev": "bun x http-server -p 3000 .",
-    "npm-dev": "npx http-server -p 3000 ."
+    "prebuild": "mkdir -p build && cp MeansTvConfig.json assets/MeansTvIcon.png build/",
+    "build": "bun build src/index.ts --target browser --outfile build/MeansTvScript.js --format iife",
+    "build:watch": "bun build src/index.ts --target browser --outfile build/MeansTvScript.js --format iife --watch",
+    "predev": "bun run prebuild",
+    "serve": "http-server build/ --port 3000 --cors -c-1",
+    "typecheck": "tsc --noEmit",
+    "lint": "npx eslint src/",
+    "dev": "bun run build:watch & bun run serve"
   }
 }

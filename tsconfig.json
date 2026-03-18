@@ -1,39 +1,30 @@
 {
   "compilerOptions": {
-    // Projects
-    "composite": true,
+    // Type checking only — bun build handles emit/bundling.
+    "noEmit": true,
 
-    // Environment setup & latest features
+    // Environment
     "lib": ["ESNext"],
     "target": "ESNext",
     "module": "ESNext",
     "moduleDetection": "force",
-    // "jsx": "react-jsx",
     "allowJs": true,
 
-    // Bundler mode
+    // Bundler-mode resolution (matches bun's resolver)
     "moduleResolution": "bundler",
-    // "allowImportingTsExtensions": true,
-    // "verbatimModuleSyntax": true,
+    "allowImportingTsExtensions": true,
 
-    // Emit
-    // "noEmit": true,
-    "declarationDir": "_dist",
-    "declarationMap": true,
-    "sourceMap": true,
-
-    // Best practices
+    // Strictness
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
-
-    // Some stricter flags
     "exactOptionalPropertyTypes": true,
     "noImplicitReturns": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noPropertyAccessFromIndexSignature": true
-  }
+  },
+  "include": ["src/**/*", "*.d.ts"]
 }

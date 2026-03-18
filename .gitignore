@@ -1,7 +1,11 @@
 node_modules
+
+# Compiled JS — all ignored except the plugin artifact and eslint config
 *.js
 *.js.map
 tsconfig.tsbuildinfo
 _dist
 
+!MeansTvScript.js
 !eslint.config.js
+build/
