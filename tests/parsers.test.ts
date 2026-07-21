@@ -9,7 +9,7 @@ const catalogEmptyHtml = await readFixture("catalog-empty.html");
 const videoJson = await readFixture("content-video.json");
 const collectionJson = await readFixture("content-collection.json");
 const streamHtml = await readFixture("program-content-stream.html");
-const productionCommentsHtml = await Bun.file(new URL("../comment_section.html", import.meta.url)).text();
+const productionCommentsHtml = await readFixture("comment-section.html");
 const productionRepliesTurboHtml = await readFixture("replies-production-turbo.html");
 
 describe("catalog parser", () => {
