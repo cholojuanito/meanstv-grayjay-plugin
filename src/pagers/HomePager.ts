@@ -1,21 +1,12 @@
-import { URLS } from "../constants";
-import { callUrl } from "../http";
-import { parseVideosFromHtml } from "../parsers/catalog";
+import { getCatalogPage } from "../api";
+import { videoFromCatalogItem } from "../utilities/factories";
 
 export class HomePager extends VideoPager {
-  // These shadow the runtime properties set by the VideoPager base constructor.
-  // plugin.d.ts declares `declare class VideoPager` without property declarations,
-  // so we redeclare them here so TypeScript knows they exist.
-  results: PlatformVideo[];
-  hasMore: boolean;
+  private page: number;
 
-  context: { page: number };
-
-  constructor(_context: { next: string | null }) {
+  constructor() {
     super([], true);
-    this.context = { page: 1 };
-    this.hasMore = true;
-    this.results = [];
+    this.page = 1;
     this.nextPage();
   }
 
@@ -24,14 +15,14 @@ export class HomePager extends VideoPager {
   }
 
   override nextPage(): HomePager {
-    log("Getting next home page, page: " + this.context.page);
-    const url =
-      this.context.page === 1
-        ? URLS.CATALOG_INITIAL
-        : `${URLS.CATALOG_MORE}?page=${this.context.page}`;
-    const html = callUrl(url, false);
-    this.results = parseVideosFromHtml(html);
-    this.hasMore = false;
+    if (!this.hasMore) return this;
+
+    const catalog = getCatalogPage(this.page);
+    this.page += 1;
+    this.results = catalog.categories.flatMap((category) =>
+      category.items.filter((item) => item.contentType === "video").map(videoFromCatalogItem),
+    );
+    this.hasMore = catalog.hasMore;
     return this;
   }
 }

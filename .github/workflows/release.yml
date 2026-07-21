@@ -1,0 +1,208 @@
+# Publishes a signed GrayJay plugin when the GitHub release PR is merged.
+
+name: Publish GrayJay Plugin
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+env:
+  BUN_VERSION: 1.3.14
+  PAGES_BASE_URL: https://cholojuanito.github.io/meanstv-grayjay-plugin
+
+jobs:
+  detect-version-bump:
+    if: ${{ github.server_url == 'https://github.com' }}
+    runs-on: ubuntu-latest
+    outputs:
+      should_publish: ${{ steps.detect.outputs.should_publish }}
+      version: ${{ steps.detect.outputs.version }}
+      tag: ${{ steps.detect.outputs.tag }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Detect version bump
+        id: detect
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          NEW_VERSION="$(
+            bun --eval 'const config = JSON.parse(await Bun.file("MeansTvConfig.json").text()); if (!Number.isInteger(config.version)) throw new Error("MeansTvConfig.json version must be an integer"); console.log(config.version);'
+          )"
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            echo "Manual publish requested for version $NEW_VERSION."
+            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+            echo "tag=v$NEW_VERSION" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          OLD_VERSION=""
+          if [ -n "${BEFORE_SHA:-}" ] && git cat-file -e "${BEFORE_SHA}:MeansTvConfig.json" 2>/dev/null; then
+            git show "${BEFORE_SHA}:MeansTvConfig.json" > /tmp/old-MeansTvConfig.json
+            OLD_VERSION="$(
+              bun --eval 'const config = JSON.parse(await Bun.file("/tmp/old-MeansTvConfig.json").text()); if (Number.isInteger(config.version)) console.log(config.version);'
+            )"
+          fi
+
+          if [ -z "$OLD_VERSION" ]; then
+            echo "No previous MeansTvConfig.json version found; skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$NEW_VERSION" -eq "$OLD_VERSION" ]; then
+            echo "MeansTvConfig.json version did not change ($NEW_VERSION); skipping publish."
+            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$NEW_VERSION" -le "$OLD_VERSION" ]; then
+            echo "Version moved backward or stayed invalid: old=$OLD_VERSION new=$NEW_VERSION"
+            exit 1
+          fi
+
+          echo "Detected release version bump: $OLD_VERSION -> $NEW_VERSION."
+          echo "should_publish=true" >> "$GITHUB_OUTPUT"
+          echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v$NEW_VERSION" >> "$GITHUB_OUTPUT"
+
+  publish:
+    needs: detect-version-bump
+    if: ${{ needs.detect-version-bump.outputs.should_publish == 'true' }}
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Type check
+        run: bun run typecheck
+
+      - name: Test
+        run: bun run test
+
+      - name: Build
+        run: bun run build
+
+      - name: Create release tag
+        env:
+          RELEASE_TAG: ${{ needs.detect-version-bump.outputs.tag }}
+        run: |
+          set -euo pipefail
+          git fetch --tags origin
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists."
+            exit 0
+          fi
+          git config user.name "github-release-bot"
+          git config user.email "github-release-bot@users.noreply.github.com"
+          git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"
+          git push origin "$RELEASE_TAG"
+
+      - name: Sign plugin artifacts
+        env:
+          SIGNING_KEY: ${{ secrets.MEANSTV_SIGNING_KEY || secrets.GRAYJAY_SIGNING_KEY }}
+          RELEASE_VERSION: ${{ needs.detect-version-bump.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${SIGNING_KEY:-}" ]; then
+            echo "Set MEANSTV_SIGNING_KEY, or legacy GRAYJAY_SIGNING_KEY, to the RSA private key PEM."
+            exit 1
+          fi
+
+          KEY_FILE="$(mktemp)"
+          PUBLIC_KEY_FILE="$(mktemp)"
+          SIGNATURE_FILE="$(mktemp)"
+          trap 'rm -f "$KEY_FILE" "$PUBLIC_KEY_FILE" "$SIGNATURE_FILE"' EXIT
+
+          printf '%s' "$SIGNING_KEY" > "$KEY_FILE"
+          chmod 600 "$KEY_FILE"
+
+          openssl rsa -in "$KEY_FILE" -pubout -outform PEM -out "$PUBLIC_KEY_FILE"
+          openssl dgst -sha512 -sign "$KEY_FILE" -out "$SIGNATURE_FILE" dist/MeansTvScript.js
+
+          SIGNATURE="$(base64 -w 0 "$SIGNATURE_FILE")"
+          PUBLIC_KEY="$(tail -n +2 "$PUBLIC_KEY_FILE" | head -n -1 | tr -d '\n')"
+
+          jq \
+            --arg sig "$SIGNATURE" \
+            --arg pk "$PUBLIC_KEY" \
+            --arg url "$PAGES_BASE_URL" \
+            --argjson version "$RELEASE_VERSION" \
+            '.scriptSignature = $sig
+             | .scriptPublicKey = $pk
+             | .sourceUrl = ($url + "/MeansTvConfig.json")
+             | .version = $version' \
+            dist/MeansTvConfig.json > dist/MeansTvConfig.json.tmp
+          mv dist/MeansTvConfig.json.tmp dist/MeansTvConfig.json
+
+          openssl dgst -sha512 -verify "$PUBLIC_KEY_FILE" -signature "$SIGNATURE_FILE" dist/MeansTvScript.js
+
+          jq '{name, version, scriptUrl, sourceUrl, iconUrl, has_signature: (.scriptSignature | length > 0), has_public_key: (.scriptPublicKey | length > 0)}' dist/MeansTvConfig.json
+          test "$(jq -r '.scriptSignature | length > 0' dist/MeansTvConfig.json)" = true
+          test "$(jq -r '.scriptPublicKey | length > 0' dist/MeansTvConfig.json)" = true
+          test -s dist/MeansTvConfig.json
+          test -s dist/MeansTvScript.js
+          test -s dist/MeansTvLogo.jpg
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+      - name: Create GitHub release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.detect-version-bump.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          generate_release_notes: true
+          files: |
+            dist/MeansTvConfig.json
+            dist/MeansTvScript.js
+            dist/MeansTvLogo.jpg

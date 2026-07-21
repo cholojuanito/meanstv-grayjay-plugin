@@ -1,0 +1,124 @@
+# Creates a GitHub release PR after main receives contributor changes.
+# The PR bumps the GrayJay integer version and prepends generated GitHub release notes to CHANGELOG.md.
+# Recommended secret: RELEASE_PR_TOKEN as a fine-grained PAT or GitHub App token with contents:write and pull_requests:write.
+
+name: Create Release PR
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  BUN_VERSION: 1.3.14
+
+jobs:
+  create-release-pr:
+    if: "${{ github.server_url == 'https://github.com' && !contains(github.event.head_commit.message, 'release: bump plugin version') }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Validate release candidate
+        run: |
+          bun run lint
+          bun run typecheck
+          bun run test
+          bun run build
+          test -s dist/MeansTvConfig.json
+          test -s dist/MeansTvScript.js
+          test -s dist/MeansTvLogo.jpg
+
+      - name: Bump GrayJay plugin version
+        id: bump
+        run: |
+          set -euo pipefail
+
+          CURRENT_VERSION="$(
+            bun --eval 'const config = JSON.parse(await Bun.file("MeansTvConfig.json").text()); if (!Number.isInteger(config.version)) throw new Error("MeansTvConfig.json version must be an integer"); console.log(config.version);'
+          )"
+          NEXT_VERSION=$((CURRENT_VERSION + 1))
+          TAG="v$NEXT_VERSION"
+
+          VERSION="$NEXT_VERSION" bun --eval 'const path = "MeansTvConfig.json"; const config = JSON.parse(await Bun.file(path).text()); config.version = Number(process.env.VERSION); await Bun.write(path, JSON.stringify(config, null, 2) + "\n");'
+
+          echo "current_version=$CURRENT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "next_version=$NEXT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure release-note labels exist
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create ignore-for-release \
+            --description "Exclude this PR from generated release notes" \
+            --color 6A737D \
+            --force
+
+      - name: Generate release notes from GitHub
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          gh api "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+            -f tag_name="$RELEASE_TAG" \
+            -f target_commitish="$GITHUB_SHA" \
+            -f configuration_file_path=".github/release.yml" \
+            --jq .body > /tmp/generated-release-notes.md
+
+          test -s /tmp/generated-release-notes.md
+
+      - name: Update CHANGELOG.md
+        env:
+          RELEASE_TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          RELEASE_DATE="$(date -u +%Y-%m-%d)"
+          RELEASE_TAG="$RELEASE_TAG" RELEASE_DATE="$RELEASE_DATE" bun --eval '
+            const path = "CHANGELOG.md";
+            const notes = (await Bun.file("/tmp/generated-release-notes.md").text()).trim();
+            const exists = await Bun.file(path).exists();
+            const existing = exists ? await Bun.file(path).text() : "";
+            const withoutTitle = existing.replace(/^# Changelog\s*\n*/u, "").trimStart();
+            const entry = `## ${process.env.RELEASE_TAG} - ${process.env.RELEASE_DATE}\n\n${notes}\n\n`;
+            await Bun.write(path, `# Changelog\n\n${entry}${withoutTitle}`);
+          '
+
+      - name: Create release pull request
+        uses: peter-evans/create-pull-request@v8
+        with:
+          token: ${{ secrets.RELEASE_PR_TOKEN || secrets.GITHUB_TOKEN }}
+          branch: release/bump-plugin-version
+          delete-branch: true
+          title: "release: bump plugin version to ${{ steps.bump.outputs.next_version }}"
+          commit-message: "release: bump plugin version to ${{ steps.bump.outputs.next_version }}"
+          body: |
+            Bumps the GrayJay plugin config version from ${{ steps.bump.outputs.current_version }} to ${{ steps.bump.outputs.next_version }}.
+
+            Also updates `CHANGELOG.md` using GitHub's automatically generated release notes configured in `.github/release.yml`.
+
+            Merge this PR to publish a signed GitHub Release and deploy the plugin to GitHub Pages.
+          labels: |
+            ignore-for-release
+          add-paths: |
+            MeansTvConfig.json
+            CHANGELOG.md
