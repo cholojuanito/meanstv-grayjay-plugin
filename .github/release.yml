@@ -1,0 +1,32 @@
+changelog:
+  exclude:
+    labels:
+      - ignore-for-release
+  categories:
+    - title: 🚨 Breaking Changes
+      labels:
+        - changelog:breaking-change
+        - breaking-change
+        - semver-major
+
+    - title: 🫥 Deprecated Changes
+      labels:
+        - changelog:deprecated
+        - deprecated
+
+    - title: 🚀 Features
+      labels:
+        - changelog:feature
+        - feature
+        - enhancement
+
+    - title: 🐛 Bug Fixes
+      labels:
+        - changelog:bugfix
+        - bug
+        - bugfix
+
+    - title: 📚 Documentation
+      labels:
+        - changelog:documentation
+        - documentation

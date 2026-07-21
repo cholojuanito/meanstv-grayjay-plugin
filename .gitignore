@@ -1,11 +1,15 @@
 node_modules
 
-# Compiled JS — all ignored except the plugin artifact and eslint config
+# Compiled JS — all ignored except root plugin artifacts and eslint config.
 *.js
 *.js.map
 tsconfig.tsbuildinfo
-_dist
+_dist/
+build/
+dist/
 
 !MeansTvScript.js
 !eslint.config.js
-build/
+
+# Sensitive browser captures are local analysis inputs, never plugin artifacts.
+*.har

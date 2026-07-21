@@ -2,36 +2,38 @@
   "name": "meanstv-grayjay-plugin",
   "version": "1.0.0",
   "description": "Means TV with type help",
-  "homepage": "https://yachay.cholojuanito.net/cholojuanito/meanstv-grayjay-plugin",
+  "homepage": "https://github.com/cholojuanito/meanstv-grayjay-plugin",
   "type": "module",
   "repository": {
     "type": "git",
-    "url": "git+https://https://yachay.cholojuanito.net/cholojuanito/meanstv-grayjay-plugin"
+    "url": "git+https://github.com/cholojuanito/meanstv-grayjay-plugin.git"
   },
   "keywords": [
     "meanstv",
     "grayjay"
   ],
   "author": "cholojuanito",
-  "license": "AGL-3.0-or-later",
+  "license": "AGPL-3.0-or-later",
   "devDependencies": {
     "@eslint/js": "^9.20.0",
     "@types/eslint__js": "^8.42.3",
-    "@types/grayjay-source": "gitlab:kaidelorenzo/grayjay-plugin-types#c750f680835bb47bfff90466acaa697920a2a82a",
+    "@types/grayjay-source": "git+https://gitlab.com/kaidelorenzo/grayjay-plugin-types.git#c750f680835bb47bfff90466acaa697920a2a82a",
     "@types/node": "^22.13.4",
     "eslint": "^9.20.1",
     "http-server": "^14.1.1",
+    "linkedom": "^0.18.13",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.24.1"
   },
   "scripts": {
-    "prebuild": "mkdir -p build && cp MeansTvConfig.json assets/MeansTvIcon.png build/",
-    "build": "bun build src/index.ts --target browser --outfile build/MeansTvScript.js --format iife",
-    "build:watch": "bun build src/index.ts --target browser --outfile build/MeansTvScript.js --format iife --watch",
+    "prebuild": "mkdir -p dist && cp MeansTvConfig.json assets/MeansTvLogo.jpg dist/",
+    "build": "bun build src/index.ts --target browser --outfile dist/MeansTvScript.js --format iife",
+    "build:watch": "bun build src/index.ts --target browser --outfile dist/MeansTvScript.js --format iife --watch",
     "predev": "bun run prebuild",
-    "serve": "http-server build/ --port 3000 --cors -c-1",
+    "serve": "http-server dist/ --port 3000 --cors -c-1",
     "typecheck": "tsc --noEmit",
-    "lint": "npx eslint src/",
+    "lint": "bun x eslint src/",
+    "test": "bun test --preload ./tests/setup.ts",
     "dev": "bun run build:watch & bun run serve"
   }
 }
